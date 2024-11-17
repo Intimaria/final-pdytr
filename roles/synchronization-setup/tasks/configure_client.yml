@@ -1,0 +1,17 @@
+---
+- name: Configure NTP client
+  ansible.builtin.template:
+    src: "{{ 'ntp_client.conf.j2' if ansible_os_family == 'Debian' or ansible_os_family == 'Suse' else 'chrony_client.conf.j2' }}"
+    dest: "{{ '/etc/ntp.conf' if ansible_os_family == 'Debian' or ansible_os_family == 'Suse' else '/etc/chrony/chrony.conf' }}"
+  notify:
+    - Restart NTP service
+
+- name: Debug check mode state
+  ansible.builtin.debug:
+    msg: "Check mode is {{ ansible_check_mode }}"
+- name: Enable and start NTP service
+  ansible.builtin.service:
+    name: "{{ 'ntp' if ansible_os_family == 'Debian' else 'chronyd' }}"
+    state: started
+    enabled: true
+  when: ansible_check_mode == false

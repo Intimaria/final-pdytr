@@ -1,0 +1,5 @@
+driftfile /var/lib/chrony/chrony.drift
+allow 192.168.1.0/24  # Allow LAN clients (adjust as necessary)
+
+# Local reference clock (similar to the fudge directive in ntp)
+local stratum 10

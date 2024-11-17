@@ -1,0 +1,5 @@
+# /etc/ntp.conf configuration for NTP Client
+driftfile /var/lib/ntp/ntp.drift
+
+# Sync with the local NTP server (using ansible_host defined in inventory)
+server {{ hostvars['ping'].ansible_host }} iburst

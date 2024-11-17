@@ -1,0 +1,9 @@
+---
+- name: Install NTP package
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ [packages] }}"
+  vars:
+    packages: "{{ 'ntp' if ansible_os_family == 'Debian' else 'ntp' if ansible_os_family == 'Suse' else 'chrony' }}"
+  become: true

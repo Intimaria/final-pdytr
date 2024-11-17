@@ -1,0 +1,16 @@
+---
+# tasks file for roles/websocket-client-server
+- name: Copy WebSocket C code to target
+  copy:
+    src: "{{ playbook_dir }}/roles/websocket/files/websocket.c"
+    dest: "/tmp/websocket.c"
+
+- name: Compile WebSocket C code
+  command: gcc -o /tmp/websocket /tmp/websocket.c
+  creates: /tmp/websocket
+
+- name: Run WebSocket application
+  command: /tmp/websocket
+  async: 3600
+  poll: 0
+

@@ -1,0 +1,11 @@
+# /etc/ntp.conf configuration for NTP Server
+driftfile /var/lib/ntp/ntp.drift
+restrict default kod nomodify notrap nopeer noquery
+restrict 127.0.0.1
+restrict ::1
+
+# Allow LAN clients (Adjust IP range)
+restrict 192.168.1.0 mask 255.255.255.0 nomodify notrap
+
+server 127.127.1.0     # local clock
+fudge 127.127.1.0 stratum 10

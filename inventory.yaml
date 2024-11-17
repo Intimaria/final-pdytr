@@ -1,0 +1,11 @@
+all:
+  children:
+    ping_pong:
+      hosts:
+        ping:
+          ansible_host: 192.168.0.21
+          ansible_connection: local
+          ansible_python_interpreter: /home/inti/.pyenv/versions/3.9.9/bin/python3
+        pong:
+          ansible_host: 192.168.0.30
+

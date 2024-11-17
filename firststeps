@@ -1,0 +1,12 @@
+#!/bin/bash
+
+set -ex
+set -o pipefail
+
+
+sudo zypper install openssh 
+sudo systemctl start sshd
+sudo systemctl enable sshd 
+sudo firewall-cmd --permanent --add-service=ssh
+sudo firewall-cmd --reload
+

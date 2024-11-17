@@ -1,0 +1,13 @@
+---
+- name: Install and configure NTP server or client
+  include_tasks: install.yml
+
+- name: Configure as NTP server
+  when: inventory_hostname == "ping"
+  include_tasks: configure_server.yml
+
+- name: Configure as NTP client
+  when: inventory_hostname == "pong"
+  include_tasks: configure_client.yml
+
+

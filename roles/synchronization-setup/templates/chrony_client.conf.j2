@@ -1,0 +1,4 @@
+driftfile /var/lib/chrony/chrony.drift
+
+# Sync with the local NTP server (using ansible_host defined in inventory)
+server {{ hostvars['ping'].ansible_host }} iburst
