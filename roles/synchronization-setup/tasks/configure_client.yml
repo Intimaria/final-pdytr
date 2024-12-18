@@ -1,8 +1,11 @@
 ---
 - name: Configure NTP client
   ansible.builtin.template:
-    src: "{{ 'ntp_client.conf.j2' if ansible_os_family == 'Debian' or ansible_os_family == 'Suse' else 'chrony_client.conf.j2' }}"
-    dest: "{{ '/etc/ntp.conf' if ansible_os_family == 'Debian' or ansible_os_family == 'Suse' else '/etc/chrony/chrony.conf' }}"
+    src: 'chrony_client.conf.j2'
+    dest:  '/etc/chrony.conf'
+    owner: root
+    group: root
+    mode: '0644'
   notify:
     - Restart NTP service
 
@@ -11,7 +14,54 @@
     msg: "Check mode is {{ ansible_check_mode }}"
 - name: Enable and start NTP service
   ansible.builtin.service:
-    name: "{{ 'ntp' if ansible_os_family == 'Debian' else 'chronyd' }}"
+    name: 'chronyd'
     state: started
     enabled: true
   when: ansible_check_mode == false
+
+
+- name: Wait for chrony service to synchronize
+  pause:
+    seconds: 30
+
+- name: Wait until client is synchronized
+  shell: "chronyc tracking | grep 'Leap status' | grep -q 'Normal'"
+  register: sync_status
+  retries: 20
+  delay: 10
+  until: sync_status.rc == 0
+  ignore_errors: yes
+
+- name: Capture client synchronization status
+  shell: "chronyc tracking"
+  register: client_tracking
+
+- name: Display client synchronization status
+  debug:
+    msg: "{{ client_tracking.stdout }}"
+
+- name: Parse time offset
+  set_fact:
+    time_offset: "{{ client_tracking.stdout | regex_search('Last offset\\s*:\\s*([\\-\\.0-9e]+)', '\\1') }}"
+
+- name: Display time offset
+  debug:
+    msg: "Time offset between client and server: {{ time_offset }} seconds"
+
+- name: Log time offset to file
+  lineinfile:
+    path: "/var/log/chrony_time_offset.log"
+    line: "{{ ansible_date_time.iso8601 }} - Time offset: {{ time_offset }} seconds"
+    create: yes
+    owner: root
+    group: root
+    mode: '0644'
+
+
+- name: Display NTP sources
+  shell: "chronyc sources"
+  register: ntp_sources
+
+- name: Show NTP sources
+  debug:
+    msg: "{{ ntp_sources.stdout }}"

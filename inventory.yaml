@@ -1,11 +1,19 @@
 all:
   children:
-    ping_pong:
+    ntp_server:
       hosts:
         ping:
-          ansible_host: 192.168.0.21
+          ansible_host: 192.168.0.33
+          ansible_user: inti
+          ansible_become: true
+       #   ansible_become_user: root
           ansible_connection: local
           ansible_python_interpreter: /home/inti/.pyenv/versions/3.9.9/bin/python3
+    ntp_client:
+      hosts:
         pong:
           ansible_host: 192.168.0.30
-
+          ansible_python_interpreter: /home/inti/.pyenv/versions/3.9.9/bin/python3
+          ansible_user: inti
+          ansible_become: true
+       #   ansible_become_user: root

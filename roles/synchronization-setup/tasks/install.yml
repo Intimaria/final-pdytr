@@ -5,5 +5,5 @@
     state: present
   loop: "{{ [packages] }}"
   vars:
-    packages: "{{ 'ntp' if ansible_os_family == 'Debian' else 'ntp' if ansible_os_family == 'Suse' else 'chrony' }}"
+    packages: 'chrony'
   become: true

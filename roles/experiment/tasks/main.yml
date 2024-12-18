@@ -1,0 +1,80 @@
+---
+- name: Ensure build dependencies are installed
+  package:
+    name: gcc
+    state: present
+
+- name: Create experiment directory
+  file:
+    path: "{{ experiment_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Copy source files
+  copy:
+    src: "{{ item }}"
+    dest: "{{ experiment_dir }}/{{ item }}"
+  with_items:
+    - client.c
+    - server.c
+    - checksum.c
+    - checksum.h
+
+- name: Copy client script to client machine
+  copy:
+    src: client-run.sh
+    dest: "{{ experiment_dir }}/client.sh"
+    mode: '0755'
+  when: inventory_hostname in groups['ntp_client']
+
+- name: Copy server script to server machine
+  copy:
+    src: server-run.sh
+    dest: "{{ experiment_dir }}/server.sh"
+    mode: '0755'
+  when: inventory_hostname in groups['ntp_server']
+
+- name: Compile code
+  shell: |
+    gcc -o server server.c checksum.c -lm -lssl -lcrypto
+    gcc -o client client.c checksum.c -lm -lssl -lcrypto
+  args:
+    chdir: "{{ experiment_dir }}"
+
+- name: Retrieve clock offset from log file
+  shell: "chronyc tracking | awk '/Last offset/ {print $4}'"
+  register: clock_offset
+  delegate_to: "{{ groups['ntp_client'][0] }}"
+  when: inventory_hostname in groups['ntp_client']
+
+  
+- name: Set fact for clock offset
+  set_fact:
+    clock_offset: "{{ clock_offset.stdout | trim }}"
+  when: clock_offset.stdout is defined and clock_offset.stdout | length > 0
+  ignore_errors: no
+  run_once: true
+  delegate_to: localhost
+
+- name: Distribute clock offset to all hosts
+  set_fact:
+    clock_offset: "{{ clock_offset.stdout }}"
+  when: clock_offset is defined and clock_offset.stdout is defined
+
+- name: Debug clock offset on all hosts
+  debug:
+    msg: "Using CLOCK_OFFSET={{ clock_offset }}"
+
+- name: Run experiments without CPU load
+  include_tasks: run_experiment.yml
+  vars:
+    experiment_type: without_load
+    cpu_load: "0"
+
+
+- name: Run experiments with CPU load
+  include_tasks: run_experiment.yml
+  vars:
+    experiment_type: with_load
+    cpu_load: "1"
+

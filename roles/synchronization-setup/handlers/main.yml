@@ -1,7 +1,7 @@
 # handlers/main.yml
 - name: Restart NTP service
   ansible.builtin.service:
-    name: "{{ 'ntp' if ansible_os_family == 'Debian' or ansible_os_family == 'Suse' else 'chronyd' }}"
+    name: 'chronyd'
     state: restarted
   become: true
   when: ansible_check_mode == false

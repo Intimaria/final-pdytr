@@ -1,8 +1,11 @@
 ---
 - name: Configure NTP/Chrony server
   ansible.builtin.template:
-    src: "{{ 'ntp_server.conf.j2' if ansible_os_family == 'Debian' or ansible_os_family == 'Suse' else 'chrony_server.conf.j2' }}"
-    dest: "{{ '/etc/ntp.conf' if ansible_os_family == 'Debian' or ansible_os_family == 'Suse' else '/etc/chrony/chrony.conf' }}"
+    src: 'chrony_server.conf.j2'
+    dest: '/etc/chrony/chrony.conf'
+    owner: root
+    group: root
+    mode: '0644'
   notify:
     - Restart NTP service
   become: true
@@ -13,7 +16,20 @@
     msg: "Check mode is {{ ansible_check_mode }}"
 - name: Enable and start NTP service
   ansible.builtin.service:
-    name: "{{ 'ntp' if ansible_os_family == 'Debian' else 'chronyd' }}"
+    name:  'chronyd'
     state: started
     enabled: true
   when: ansible_check_mode == false
+
+- name: Wait for chrony service to start
+  wait_for:
+    timeout: 10
+    delay: 2
+
+- name: Capture server synchronization status
+  shell: "chronyc tracking"
+  register: server_tracking
+
+- name: Display server synchronization status
+  debug:
+    msg: "{{ server_tracking.stdout }}"

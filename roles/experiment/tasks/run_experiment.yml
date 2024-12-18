@@ -1,0 +1,136 @@
+# roles/experiment/tasks/run_experiment.yml
+---
+- name: Ensure results directory exists on client
+  file:
+    path: "{{ experiment_dir }}/results"
+    state: directory
+    mode: '0755'
+  when: inventory_hostname in groups['ntp_client']
+
+- name: Ensure outputs directory exists
+  file:
+    path: "{{ playbook_dir }}/outputs"
+    state: directory
+    mode: '0755'
+
+- name: Debug clock offset value
+  debug:
+    msg: "Using CLOCK_OFFSET={{ clock_offset }}"
+
+#- name: Set iteration range
+#  set_fact:
+#    iteration_range: "{{ range(1, iterations + 1) }}"
+#  when: inventory_hostname in groups['ntp_client']
+#
+#
+#- name: Prepare experiment combinations
+#  set_fact:
+#    experiment_combinations: "{{ buffer_sizes | product(iteration_range) | list }}"
+#  when: inventory_hostname in groups['ntp_client']
+#
+#
+#- name: Run experiments
+#  when: inventory_hostname in groups['ntp_client']
+#  include_tasks: run_iteration.yml
+#  loop: "{{ experiment_combinations }}"
+#  loop_control:
+#    loop_var: item
+#    label: "Buffer size: {{ item.0 }}, Iteration: {{ item.1 }}"
+#  vars:
+#    current_buffer_size: "{{ item.0 }}"
+#    iteration: "{{ item.1 }}"
+#    server_host: "{{ groups['ntp_server'][0] }}"
+#    cpu_load: "{{ (experiment_type == 'with_load') | ternary('1', '0') }}"
+#
+
+
+- name: Run server script
+  shell: |
+    export PORT={{ server_port }}
+    export CPU_LOAD={{ cpu_load }}
+    ./server.sh > server_output.log 2>&1
+  args:
+    chdir: "{{ experiment_dir }}"
+  with_items:
+    - 1000
+    - 10000
+    - 100000
+    - 1000000
+    - 10000000
+  async: 3600
+  poll: 0
+  delegate_to: "{{ groups['ntp_server'][0] }}"
+  register: server_async
+
+
+- name: Wait for server readiness
+  wait_for:
+    host: "{{ hostvars[groups['ntp_server'][0]].ansible_host }}"
+    port: "{{ server_port }}"
+    state: started
+    timeout: 30
+
+
+- name: Run client script
+  shell: |
+    export SERVER_IP="{{ hostvars[groups['ntp_server'][0]].ansible_host }}"
+    export PORT="{{ server_port }}"
+    export BUFFER_SIZE=100
+    export CLOCK_OFFSET="{{ clock_offset }}"
+    ./client.sh > client_output.log 2>&1
+  args:
+    chdir: "{{ experiment_dir }}"
+  with_items:
+    - 1000
+    - 10000
+    - 100000
+    - 1000000
+    - 10000000
+  async: 3600
+  poll: 0
+  delegate_to: "{{ groups['ntp_client'][0] }}"
+  register: client_async
+
+#- name: Wait for server script to complete
+#  async_status:
+#    jid: "{{ server_async.ansible_job_id }}"
+#  register: server_job_result
+#  until: server_job_result.finished
+#  retries: 50
+#  delay: 10
+#  delegate_to: "{{ groups['ntp_server'][0] }}"
+
+- name: Wait for client script to complete
+  async_status:
+    jid: "{{ client_async.ansible_job_id }}"
+  register: client_job_result
+  until: client_job_result.finished
+  retries: 10
+  delay: 10
+  delegate_to: "{{ groups['ntp_client'][0] }}"
+
+- name: Kill any existing client 
+  shell: "pkill -f './client'"  
+  ignore_errors: yes
+  become: true
+  delegate_to: "{{ groups['ntp_client'][0] }}"
+
+- name: Terminate server script
+  shell: "pkill -f './server'"
+  ignore_errors: yes
+  become: true
+  delegate_to: "{{ groups['ntp_server'][0] }}"
+
+- name: Fetch client log
+  fetch:
+    src: "{{ experiment_dir }}/client_output.log"
+    dest: "{{ playbook_dir }}/outputs/"
+    flat: yes
+  when: inventory_hostname in groups['ntp_client']
+
+- name: Fetch server log
+  fetch:
+    src: "{{ experiment_dir }}/server_output.log"
+    dest: "{{ playbook_dir }}/outputs/"
+    flat: yes
+  when: inventory_hostname in groups['ntp_server']
