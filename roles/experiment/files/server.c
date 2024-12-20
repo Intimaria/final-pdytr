@@ -32,6 +32,8 @@ void handle_signal(int signal) {
 void *matrix_multiply(void *arg) {
     int size = *((int *)arg);
     while (cpu_load_flag) {
+        printf("Processing matrix..");
+        fflush(stdout);
         double **a = malloc(size * sizeof(double *));
         double **b = malloc(size * sizeof(double *));
         double **c = malloc(size * sizeof(double *));
@@ -68,6 +70,7 @@ void *matrix_multiply(void *arg) {
         free(a);
         free(b);
         free(c);
+        sleep(1);
     }
     return NULL;
 }
@@ -101,7 +104,7 @@ int main(int argc, char *argv[]) {
     struct sockaddr_in serv_addr, cli_addr;
     socklen_t clilen;
     struct timespec recv_time;
-    int matrix_size = 500;
+    int matrix_size = 5465660;
 
     signal(SIGTERM, handle_signal);
     signal(SIGINT, handle_signal);
@@ -136,6 +139,16 @@ int main(int argc, char *argv[]) {
         error("ERROR setting socket options");
     }
 
+    // Optional CPU load
+//    if (cpu_load_flag) {
+ //       pthread_create(&cpu_load_thread, NULL, matrix_multiply, &matrix_size);
+ //   }
+ //
+    int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
+    pthread_t *cpu_load_threads = malloc(num_cores * sizeof(pthread_t));
+    for (int i = 0; i < num_cores; i++) {
+        pthread_create(&cpu_load_threads[i], NULL, matrix_multiply, &matrix_size);
+    }
     // Set up server address
     memset(&serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
@@ -162,10 +175,7 @@ int main(int argc, char *argv[]) {
         error("ERROR on accept");
     }
 
-    // Optional CPU load
-    if (cpu_load_flag) {
-        pthread_create(&cpu_load_thread, NULL, matrix_multiply, &matrix_size);
-    }
+
 
     // Receive and process data
     receive_and_process_data(newsockfd, buffer, buffer_size);
@@ -176,6 +186,32 @@ int main(int argc, char *argv[]) {
         error("ERROR getting receive time");
     }
 
+    // After reading data and getting recv_time:
+    struct timespec server_send_time;
+    if (clock_gettime(CLOCK_REALTIME, &server_send_time) == -1) {
+        free(buffer);
+        error("ERROR getting server send time");
+    }
+
+    // Now send both server_recv_time and server_send_time
+    // We'll send them back-to-back in a single write operation:
+    size_t bytes_to_send = sizeof(recv_time) + sizeof(server_send_time);
+    char time_buffer[sizeof(recv_time) + sizeof(server_send_time)];
+    memcpy(time_buffer, &recv_time, sizeof(recv_time));
+    memcpy(time_buffer + sizeof(recv_time), &server_send_time, sizeof(server_send_time));
+
+    ssize_t total_sent = 0;
+    while (total_sent < (ssize_t)bytes_to_send) {
+        ssize_t n = write(newsockfd, time_buffer + total_sent, bytes_to_send - total_sent);
+        if (n < 0) {
+            perror("ERROR writing times to socket");
+            close(newsockfd);
+            free(buffer);
+            exit(EXIT_FAILURE);
+        }
+        total_sent += n;
+    }
+/*
     // Send the receive time back to the client
     ssize_t total_sent = 0;
     size_t bytes_to_send = sizeof(recv_time);
@@ -190,14 +226,21 @@ int main(int argc, char *argv[]) {
         }
         total_sent += n;
     }
+*/    
     printf("Sent %zu bytes of server receive time to client.\n", total_sent);
 
     // Optional: Stop CPU load thread
-    if (cpu_load_flag) {
+/*    if (cpu_load_flag) {
         cpu_load_flag = 0;
         pthread_join(cpu_load_thread, NULL);
+    } */
+    if (cpu_load_flag) {
+      cpu_load_flag = 0;
+      for (int i = 0; i < num_cores; i++) {
+        pthread_join(cpu_load_threads[i], NULL);
+      }
+      free(cpu_load_threads);
     }
-
     // Close sockets and free resources
     close(newsockfd);
     close(sockfd);

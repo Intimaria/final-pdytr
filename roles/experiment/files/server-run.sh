@@ -35,7 +35,8 @@ echo "Starting server: PORT=$PORT, CPU_LOAD=$CPU_LOAD"
 
 
 # Execute server binary
-./server "$PORT" "$BUFFER_SIZE" "$CPU_LOAD" > "server_${BUFFER_SIZE}.log" 2>&1
+./server "$PORT" "$BUFFER_SIZE" "$CPU_LOAD"
+#> "server_${BUFFER_SIZE}.log" 2>&1
 if [ $? -ne 0 ]; then
     echo "Error: Server failed for buffer size $BUFFER_SIZE" >&2
     exit 1
