@@ -1,0 +1,48 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars file for roles/setup_experiment
+---
+experiment_dir: "/tmp/experiment"
+experiment_port: 5000
+
+# List of server and client files to be copied
+server_files:
+  - server.c
+  - checksum.c
+  - checksum.h
+  - server-run.sh
+
+client_files:
+  - client.c
+  - checksum.c
+  - checksum.h
+  - client-run.sh
+
+# List of packages to install based on the OS family
+debian_packages:
+  - git
+  - curl
+  - gcc
+  - make
+  - zlib1g-dev
+  - libssl-dev
+  - libsqlite3-dev
+  - libreadline-dev
+  - libffi-dev
+  - tk-dev
+  - liblzma-dev
+  - sshpass
+
+suse_packages:
+  - git
+  - curl
+  - gcc
+  - make
+  - zlib-devel
+  - openssl-devel
+  - sqlite3-devel
+  - readline-devel
+  - libffi-devel
+  - tk-devel
+  - xz-devel
+  - sshpass

@@ -1,0 +1,5 @@
+- name: Setup experiment on all hosts
+  hosts: all
+  become: true
+  roles:
+    - setup-experiment

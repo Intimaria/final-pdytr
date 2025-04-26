@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: MIT-0
+---
+# tasks file for roles/setup_experiment
+
+
+- name: Ensure SSH service is running and enabled
+  ansible.builtin.service:
+    name: sshd
+    state: started
+    enabled: true
+
+- name: Open firewall ports on SUSE-based systems
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    permanent: true
+    state: enabled
+    immediate: yes
+  loop:
+    - ssh
+    - ntp
+  when: ansible_os_family == 'Suse'
+
+- name: Open custom experiment port on SUSE-based systems
+  ansible.posix.firewalld:
+    port: "{{ experiment_port }}/tcp"
+    permanent: true
+    state: enabled
+    immediate: yes
+  when: ansible_os_family == 'Suse' 
+
+- name: Open firewall ports on Debian-based systems (UFW)
+  community.general.ufw:
+    rule: allow
+    name: "{{ item }}"
+  loop:
+    - OpenSSH
+    - NTP
+  when: ansible_os_family == 'Debian'
+
+- name: Open custom experiment port on Debian-based systems
+  community.general.ufw:
+    rule: allow
+    port: "{{ experiment_port }}"
+    proto: tcp
+  when: ansible_os_family == 'Debian'
+
+- name: Install required packages (Debian-based)
+  ansible.builtin.package:
+    name: "{{ debian_packages }}"
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Install required packages (SUSE-based)
+  ansible.builtin.package:
+    name: "{{ suse_packages }}"
+    state: present
+  when: ansible_os_family == 'Suse'
+
+- name: Create experiment directory
+  ansible.builtin.file:
+    path: "{{ experiment_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Copy source files (server)
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ experiment_dir }}/{{ item }}"
+    mode: '0755'
+  loop: "{{ server_files }}"
+  when: inventory_hostname in groups['ntp_server']
+
+- name: Copy source files (client)
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ experiment_dir }}/{{ item }}"
+    mode: '0755'
+  loop: "{{ client_files }}"
+  when: inventory_hostname in groups['ntp_client']
+
+- name: Compile client code
+  ansible.builtin.shell: |
+    gcc -o client client.c checksum.c -lm -lssl -lcrypto
+  args:
+    chdir: "{{ experiment_dir }}"
+  when: inventory_hostname in groups['ntp_client']
+
+- name: Compile server code
+  ansible.builtin.shell: |
+    gcc -o server server.c checksum.c -lm -lssl -lcrypto
+  args:
+    chdir: "{{ experiment_dir }}"
+  when: inventory_hostname in groups['ntp_server']

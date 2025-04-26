@@ -1,22 +1,22 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>        // For close()
+#include <unistd.h>       
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include <time.h>          // For clock_gettime()
-#include <inttypes.h>      // For precise integer types
+#include <time.h>          
+#include <inttypes.h>      
 #include <pthread.h>
-#include "checksum.h"      // Include checksum header if needed
+#include "checksum.h"      
 
 #define BUFFER_FILL_CHAR 'A'
 #define PROGRESS_INTERVAL 1024
 
 static int cpu_load_flag = 0;
 
-// matrix_multiply function (copied from server)
+// matrix_multiply function to simulate CPU load
 void *matrix_multiply(void *arg) {
     int size = *((int *)arg);
     while (cpu_load_flag) {
@@ -125,13 +125,6 @@ int main(int argc, char *argv[]) {
            server->h_length);
     serv_addr.sin_port = htons(portno);
 
-    // CPU Load
-/*    if (cpu_load_flag) {
-      if (pthread_create(&cpu_load_thread, NULL, matrix_multiply, &matrix_size) != 0) {
-        error("ERROR creating CPU load thread");
-      }
-    }
-*/
     int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
     pthread_t *cpu_load_threads = malloc(num_cores * sizeof(pthread_t));
     for (int i = 0; i < num_cores; i++) {
@@ -169,40 +162,7 @@ int main(int argc, char *argv[]) {
     size_t bytes_to_read = sizeof(server_recv_time) + sizeof(server_send_time);
     char time_buffer[bytes_to_read];
     size_t total_read = 0;
-/*    while (total_read < bytes_to_read) {
-        ssize_t n = read(sockfd, ((char *)&server_recv_time) + total_read, bytes_to_read - total_read);
-        if (n < 0) {
-            free(buffer);
-            error("ERROR reading server receive time");
-        } else if (n == 0) {
-            free(buffer);
-            fprintf(stderr, "ERROR server closed the connection unexpectedly\n");
-            exit(EXIT_FAILURE);
-        }
-        total_read += n;
-    }
-
-    if (total_read != bytes_to_read) {
-        free(buffer);
-        fprintf(stderr, "ERROR incomplete server receive time received\n");
-        exit(EXIT_FAILURE);
-    }
-
-
-//    if (total_sent % PROGRESS_INTERVAL == 0) {
-//        printf("Sent %zd/%d bytes\n", total_sent, buffer_size);
-//    }
-//
-//    // Receive server's receive time
-//    ssize_t n = read(sockfd, &server_recv_time, sizeof(server_recv_time));
-//    if (n < 0) {
-//        free(buffer);
-//        error("ERROR reading server receive time");
-//    } else if (n != sizeof(server_recv_time)) {
-//        free(buffer);
-//        fprintf(stderr, "ERROR incomplete server receive time received\n");
-//        exit(EXIT_FAILURE);
-//    }
+    (n != sizeof(server_recv_time)) {
 
     // Record receive time
     if (clock_gettime(CLOCK_REALTIME, &recv_time) == -1) {
@@ -220,8 +180,6 @@ int main(int argc, char *argv[]) {
         nsec_diff += 1000000000; // Add one second in nanoseconds
     }
 
-
-
     one_way_delay = sec_diff + nsec_diff / 1e9;
 
     // Adjust for clock offset - adjusted_delay = one_way_delay - clock_offset;
@@ -229,8 +187,6 @@ int main(int argc, char *argv[]) {
 
     // Output the adjusted one-way delay
     printf("One-way delay (%f seconds\n", adjusted_delay);
-*/
-
 
     while (total_read < bytes_to_read) {
         ssize_t n = read(sockfd, time_buffer + total_read, bytes_to_read - total_read);
@@ -255,14 +211,6 @@ int main(int argc, char *argv[]) {
         error("ERROR getting client receive time");
     }
 
-    // Compute both directions (assuming you've done any offset correction if desired)
-    /*
-    double c2s_delay = (server_recv_time.tv_sec - send_time.tv_sec) +
-                      (server_recv_time.tv_nsec - send_time.tv_nsec) / 1e9;
-
-    double s2c_delay = (recv_time.tv_sec - server_send_time.tv_sec) +
-                      (recv_time.tv_nsec - server_send_time.tv_nsec) / 1e9;
-*/
     // Compute Client → Server delay
     long sec_diff_c2s = server_recv_time.tv_sec - send_time.tv_sec;
     long nsec_diff_c2s = server_recv_time.tv_nsec - send_time.tv_nsec;
@@ -289,12 +237,6 @@ int main(int argc, char *argv[]) {
 
     double s2c_delay = sec_diff_s2c + nsec_diff_s2c / 1e9;
 
-// Print results
-    // If you have a clock_offset from your local NTP server, apply it as needed
-    // This offset would adjust the measured times, e.g.:
-    //c2s_delay -= clock_offset;
-    // s2c_delay -= clock_offset;
-
     
     printf("Seconds Difference (C2S): %ld\n", sec_diff_c2s);
     printf("Nanoseconds Difference (C2S): %ld\n", nsec_diff_c2s);
@@ -303,16 +245,7 @@ int main(int argc, char *argv[]) {
 
     printf("Client→Server One-Way Delay: %.6f seconds\n", c2s_delay);
     printf("Server→Client One-Way Delay: %.6f seconds\n", s2c_delay);
-//    printf("Client→Server One-Way Delay: %f seconds\n", c2s_delay);
-//    printf("Server→Client One-Way Delay: %f seconds\n", s2c_delay);
-    // Clean up
- /*   if (cpu_load_flag) {
-      cpu_load_flag = 0;
-      for (int i = 0; i < num_cores; i++) {
-        pthread_join(cpu_load_threads[i], NULL);
-      }
-      free(cpu_load_threads);
-    } */
+
     close(sockfd);
     free(buffer);
     return 0;

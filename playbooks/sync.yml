@@ -1,0 +1,11 @@
+---
+- name: Configure NTP server on ping host
+  hosts: ping
+  roles:
+    - synchronization-setup
+
+- name: Configure NTP client on pong host
+  hosts: pong
+  roles:
+    - synchronization-setup
+

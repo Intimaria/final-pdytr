@@ -9,7 +9,7 @@
 #include <time.h>
 #include <signal.h>
 
-#include "checksum.h" // Include your checksum header
+#include "checksum.h" 
 
 #define BACKLOG 5 // Number of pending connections queue will hold
 
@@ -139,11 +139,6 @@ int main(int argc, char *argv[]) {
         error("ERROR setting socket options");
     }
 
-    // Optional CPU load
-//    if (cpu_load_flag) {
- //       pthread_create(&cpu_load_thread, NULL, matrix_multiply, &matrix_size);
- //   }
- //
     int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
     pthread_t *cpu_load_threads = malloc(num_cores * sizeof(pthread_t));
     for (int i = 0; i < num_cores; i++) {
@@ -175,8 +170,6 @@ int main(int argc, char *argv[]) {
         error("ERROR on accept");
     }
 
-
-
     // Receive and process data
     receive_and_process_data(newsockfd, buffer, buffer_size);
 
@@ -193,8 +186,6 @@ int main(int argc, char *argv[]) {
         error("ERROR getting server send time");
     }
 
-    // Now send both server_recv_time and server_send_time
-    // We'll send them back-to-back in a single write operation:
     size_t bytes_to_send = sizeof(recv_time) + sizeof(server_send_time);
     char time_buffer[sizeof(recv_time) + sizeof(server_send_time)];
     memcpy(time_buffer, &recv_time, sizeof(recv_time));
@@ -211,29 +202,10 @@ int main(int argc, char *argv[]) {
         }
         total_sent += n;
     }
-/*
-    // Send the receive time back to the client
-    ssize_t total_sent = 0;
-    size_t bytes_to_send = sizeof(recv_time);
-
-    while (total_sent < bytes_to_send) {
-        ssize_t n = write(newsockfd, ((char *)&recv_time) + total_sent, bytes_to_send - total_sent);
-        if (n < 0) {
-            perror("ERROR writing receive time to socket");
-            close(newsockfd);
-            free(buffer);
-            exit(EXIT_FAILURE);
-        }
-        total_sent += n;
-    }
-*/    
+   
     printf("Sent %zu bytes of server receive time to client.\n", total_sent);
 
-    // Optional: Stop CPU load thread
-/*    if (cpu_load_flag) {
-        cpu_load_flag = 0;
-        pthread_join(cpu_load_thread, NULL);
-    } */
+
     if (cpu_load_flag) {
       cpu_load_flag = 0;
       for (int i = 0; i < num_cores; i++) {
